@@ -1,0 +1,4 @@
+Microsoft BASIC-80 5.21 (7-28-1981) [CPM-80]
+
+This is a stanalone COM (application) file. You must import it in to a CP/M-80
+file system to run it. 
