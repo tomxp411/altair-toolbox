@@ -1,0 +1,19 @@
+This is a basic organizational structure. We can refine this as we go.
+
+CPM
+  games 
+  utilities
+  programming
+  productivity
+  communication
+Front panel
+  programs like Kill The Bit would live here
+Tape
+  stuff loaded directly from paper tape or cassette
+ROMS
+BASIC (not sorted yet, since I haven't uploaded my cache of BASIC programs)
+  games 
+  examples
+  benchmarks
+FORTH
+  because some people here love FORTH
