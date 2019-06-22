@@ -12,7 +12,8 @@ Fork this repository, add your item, and create a pull request. Once your reques
 (This will always be here.) If you DO keep a local fork, please pull regularly from this fork, so yours doesn't get 
 too far behind.
 
-I'd prefer uploads as loose files (ie: COM, TXT, ASM) as well as a _link_ to a disk image.
+I'd prefer uploads as loose files (ie: COM, TXT, ASM). Include disk images as links in the README for your upload. 
+If the upload only makes sense as a disk image (ie: boot disks), then upload the disk image directly.
 
 Disk images should use the Tarbell 8" floppy format used by the Altair Clone and Altairduino emulators. This is a 330K
 file and should either be readable on CP/M 2.2 or directly bootable.
