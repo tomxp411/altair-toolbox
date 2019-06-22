@@ -6,9 +6,9 @@ The Altair Toolbox is located at https://github.com/tomxp411/altair-toolbox
 This is a collection of free software, with a focus on CP/M programs that can run on the Altair 8800 and IMSAI 8080. 
 This is a _software preservation project_ with the chief goal of preserving these programs for future generations.
 
-#contributing
+# contributing
 
-Fork this repository and create a pull request. Once your request is accepted, feel free to delete your local fork. 
+Fork this repository, add your item, and create a pull request. Once your request is accepted, feel free to delete your local fork. 
 (This will always be here.) If you DO keep a local fork, please pull regularly from this fork, so yours doesn't get 
 too far behind.
 
