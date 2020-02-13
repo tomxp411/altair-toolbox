@@ -29,6 +29,7 @@ runs under and the license.
 Example:
 
 ` 10 REM SPACE WAR FOR BASIC-80 5.0
+
 ` 20 REM (C) 2019 TOM WILSON CC BY-SA-NC 
 
 Creative Commons is a good fit for BASIC source code. 
