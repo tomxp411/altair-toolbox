@@ -1,0 +1,14 @@
+d tracks[0-7] 254
+attach dsk cpm2.dsk
+attach dsk1 mtbasic.dsk
+attach dsk2 sbasic.dsk
+attach dsk3 tbasic.dsk
+attach dsk4 bbcbasic.dsk
+set cpu 64k
+set cpu noitrap
+set cpu z80
+set cpu altairrom
+set cpu nonbanked
+reset cpu
+set sio ansi
+boot dsk

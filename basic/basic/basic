@@ -1,0 +1,10 @@
+d tracks[0-7] 254
+attach dsk cpm2.dsk
+attach dsk1 basic.dsk
+set cpu 64k
+set cpu itrap
+set cpu z80
+set cpu altairrom
+set cpu nonbanked
+reset cpu
+boot dsk
