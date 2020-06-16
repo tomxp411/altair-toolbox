@@ -1,5 +1,5 @@
 10 REM Simple terminal program
-20 REM Set PI and PD to the locations of your SIO board.
+20 REM Set PS and PD to the locations of your SIO board.
 30 REM ^C to quit.
 40 REM Donated to public domain Tom Wilson
 50 PRINT "Simple Term: ^C to quit ^A c to send ^c"
