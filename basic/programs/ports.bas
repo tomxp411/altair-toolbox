@@ -1,0 +1,7 @@
+1000 REM Port test: shows input from ports 0-32 for testing SIO cards.
+1010 DIM I(32):FOR I=0 TO 32:I(I)=255:NEXT
+1020 FOR I=0 TO 32
+1030 A=INP(I)
+1040 IF A<>I(I) THEN I(I)=A:PRINT I,A
+1050 NEXT
+1060 GOTO 1020
