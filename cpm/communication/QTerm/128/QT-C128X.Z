@@ -1,0 +1,371 @@
+; QT-C128X.Z - patch code for QTERM on the Commodore 128, using the
+; SwiftLink-232 serial cartridge from Dr. Evil Laboratories.
+
+; written 5/20/90 D. Goodenough
+
+; modified 6/24/90 D. Goodenough to enable and disable the ACIA on entry and
+; exit, added code to manipulate DTR and Break for the ^O . and ^O , functions.
+
+; modified 6/27/90 D. Goodenough to only disable the ACIA on exit if DCD
+; is inactive. That allows a temporary escape from QTERM when online to
+; do a directory or whatever without hanging up.
+
+.macro	readin	addr
+	ld	(0xff04),a
+	ld	bc,addr
+	in	a,(c)
+	ld	(0xff02),a
+.endm
+
+.macro	wrtout	addr
+	ld	(0xff04),a
+	ld	bc,addr
+	out	(c),a
+	ld	(0xff02),a
+.endm
+
+; modist - return with z flag clear iff there is a char waiting at modem port
+
+.org	0x0110
+modist:	ld	hl,(_base_)
+	ld	a,(hl)
+	inc	hl
+	xor	(hl)
+	ret
+
+; modin - read char from modem port: modist has been used to check it's there
+
+.org	0x0120
+modin:	ld	hl,(_base_)
+	inc	(hl)
+	ld	e,(hl)
+	inc	hl
+	inc	hl
+	ld	d,0
+	add	hl,de
+	ld	a,(hl)
+	ret
+
+; modost - return with z flag clear iff the modem can accept another char
+
+.org	0x0130
+modost:	readin	0xde01
+	and	0x10
+	ret
+
+; modout - send char to modem port
+
+.org	0x0140
+modout:	wrtout	0xde00
+	ret
+
+; sbreak - start a break condition on line
+
+.org	0x0150
+sbreak:	ld	a,(cmnd)
+	or	0x0c
+	jr	fincmd
+
+; ebreak - terminate break condition
+
+.org    0x0160
+ebreak:	jr	dtron
+
+; dtroff - disable dtr to cause modem to hang up
+
+.org	0x0170
+dtroff:	xor	a
+	jr	fincmd
+
+; dtron - re-enable dtr
+
+.org	0x0180
+dtron:	ld	a,(cmnd)
+fincmd:	wrtout	0xde02
+	ret
+
+; setbd - take byte in a, from baud table, use it to set baud rate
+
+.org	0x0190
+setbd:	ld	l,a		; done elsewhere - see patch area
+	ld	a,(ctrl)
+	and	0xf0
+	or	l
+	ld	(ctrl),a
+	jp	finbd
+
+; these next eight are byte pairs - the first byte is used by setbd above.
+; the second is a -1 for an active baud rate entry, and a 0 for inactive
+
+.org	0x01a0
+b38400:	db	0,0
+b19200:	db	0,0
+b9600:	db	0xc,-1
+b4800:	db	0xa,-1
+b2400:	db	0x8,-1
+b1200:	db	0x7,-1
+b600:	db	0x6,-1
+b300:	db	0x5,-1
+
+; setmod - take a byte from the mode table, use it to set the uart mode
+
+.org	0x01b0
+setmod:	ld	e,a
+	ld	hl,cmnd
+	and	0b11100000
+	ld	d,a
+	ld	a,(hl)
+	jp	finmod
+
+; now the twelve mode bytes for setting comm format
+
+.org	0x01c0
+modtab:
+n17:	db	0b00000100
+n18:	db	0b00000000
+n27:	db	0b00010100
+n28:	db	0b00010000
+e17:	db	0b01100100
+e18:	db	0b01100000
+e27:	db	0b01110100
+e28:	db	0b01110000
+o17:	db	0b00100100
+o18:	db	0b00100000
+o27:	db	0b00110100
+o28:	db	0b00110000
+
+.org	0x01cc
+resrvd:	db	0		; reserved
+
+; xfersz - number of K to read / write to disk during protocol transfers:
+; must be 1 / 2 / 4 / 8. Generally this is best left at 8 unless you have
+; a REALLY slow disk, when writing / reading 8K at a time causes timeouts.
+; Drop this to 4 or 2 to do disk access in smaller chunks to help avoid
+; the timeout problem
+
+.org	0x01cd
+xfersz:	db	2		; send 2K at a time: CBM disks are slooowww.
+				; this can be bumped to 8 if you're using a
+				; 1750 REU as drive M:
+
+; speed - simply the cpu speed for a z80 in mhz.
+
+.org	0x01ce
+speed:	db	2		; A slow CPU (which is odd, because they
+				; put a Z80B in there)
+
+; escape - this is the character used as the escape char: since the addresses
+; in the table tend to move, we just put the byte here, and then transfer
+; to the table later
+
+.org	0x01cf
+escape:	db	'o' & 0x1f	; use ^O on the 128
+
+; the signon message - change this to be appropriate for your system
+
+.org	0x01d0
+signon:	db	'Commodore 128 / SwiftLink-232\0'
+
+; now the string for clear screen
+
+.org	0x01f0
+clrs:	db	'z' & 0x1f, 0
+
+; moveto - this routine is called with a word in hl - h = row 
+
+; l = column to move to, at 109 is a routine to print a char in c,
+; at 10c is a routine to print a decimal number in hl (for ansi tubes)
+
+.var	scrout	0x0109
+.var	decout	0x010c
+
+.org	0x0200
+moveto:	push	hl		; save coords
+	ld	c,'\e'
+	call	scrout		; lead in escape
+	ld	c,'='
+	call	scrout		; leadin '='
+	pop	hl
+	push	hl
+	ld	a,h		; row to a
+	call	poff		; out it goes w/ offset
+	pop	hl
+	ld	a,l		; col to a
+poff:	add	a,' '		; add offset
+	ld	c,a
+	jp	scrout		; & print it
+
+; these next strings are used to do various screen functions. There are
+; eight of them, and immediately preceding them is a flag byte. Each string
+; has a bit in the byte, and if a capability is present, its bit should
+; be set. This byte is an absolute necessity, as various programs use it
+; to tell if various things are present.
+
+.org	0x022f
+tcbits:	db	0b11111111	; bits are:
+				; 0: bright		b_brite	1
+				; 1: dim		b_dim	2
+				; 2: delete line	b_delln	4
+				; 3: insert line	b_insln	8
+				; 4: delete character	b_delch	16
+				; 5: insert character	b_insch	32
+				; 6: clear end line	b_cleol	64
+				; 7: clear end screen	b_cleos	128
+
+.org	0x0230
+brites:	db	'\e(\0'
+
+.org	0x0238
+dims:	db	'\e)\0'
+
+.org	0x0240
+dlstr:	db	'\eR\0'
+
+.org	0x0248
+ilstr:	db	'\eE\0'
+
+.org	0x0250
+dcstr:	db	'\eW\0'
+
+.org	0x0258
+icstr:	db	'\eQ\0'
+
+.org	0x0260
+ceol:	db	'\eT\0'
+
+.org	0x0268
+ceos:	db	'\eY\0'
+
+; Entry and exit hooks. These are provided to perform custom initialisation
+; on startup, and also to perform custom code on exit.
+
+.org	0x0270
+entry:	jp	init
+
+.org	0x0273
+exit:	jp	deinit
+
+.org	0x0276
+user:	ret
+
+.org	0x0279
+kbmap:	ret
+
+.var	prompt	0x027c
+
+; finally a patch area that is provided for patching odd systems that need
+; a lot of space.
+
+.org	0x0280
+
+init:
+	ld	a,(b2400)
+	call	setbd
+
+	ld	a,(n18)
+	call	setmod
+
+	pop	hl
+	ld	(retadr),hl
+	di
+	ld	sp,0x04fe
+	ld	de,(6)
+	ld	hl,{icode - endi} - [256 + 2 + 3]
+	add	hl,de
+	ld	(6),hl
+	ld	(hl),0xc3
+	inc	hl
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	xor	a
+	ld	(hl),a
+	ld	(_base_),hl
+	ld	(_here_ + 1),hl
+	inc	hl
+	ld	(hl),a
+	push	hl
+	ld	hl,(0xfdfe)
+	ld	(_jint_ + 1),hl
+	ld	(_ivec_),hl
+	pop	hl
+	ld	de,257
+	add	hl,de
+	push	hl
+	ex	de,hl
+	ld	hl,icode
+	ld	bc,{endi - icode}
+	ldir
+	pop	hl
+	ld	(0xfdfe),hl
+	ei
+	ld	hl,(retadr)
+	jp	(hl)
+
+deinit:
+	readin	0xde01
+	and	0x40
+	call	nz,dtroff
+	di
+	ld	hl,(_ivec_)
+	ld	(0xfdfe),hl
+	ei
+	ret
+
+icode:
+	di
+	push	hl
+	push	bc
+	push	af
+	ld	bc,0xde01
+	in	a,(c)
+	and	8
+	jr	z,icdone
+_here_:	ld	hl,0			; filled in later
+	ld	a,(hl)			; get output pointer
+	inc	hl
+	ld	c,(hl)			; get input pointer
+	inc	c
+	cp	c			; is the buffer full
+	jr	z,icdone		; yes - ignore this
+	ld	(hl),c
+	inc	hl
+	ld	b,0
+	add	hl,bc
+	ld	bc,0xde00
+	in	a,(c)
+	ld	(hl),a
+icdone:	pop	af
+	pop	bc
+	pop	hl
+_jint_:	jp	0			; also filled in later
+endi:
+
+_base_:	dw	0
+_ivec_:	dw	0
+retadr:	dw	0
+cmnd:	db	0b00001011
+ctrl:	db	0b00010000
+
+finmod:	and	0b00011111
+	or	d
+	ld	(hl),a
+	wrtout	0xde02
+	inc	hl
+	ld	a,e
+	add	a,a
+	add	a,a
+	add	a,a
+	and	0b11100000
+	ld	d,a
+	ld	a,(hl)
+	and	0b00011111
+	or	d
+	ld	(hl),a
+
+finbd:
+	wrtout	0xde03
+	ret
+
+; MUST terminate by 0x04ff

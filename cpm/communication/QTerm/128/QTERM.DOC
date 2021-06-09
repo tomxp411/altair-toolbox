@@ -1,0 +1,320 @@
+QTERM
+=====
+
+If QTERM is invoked with no arguments, it starts up, and after signing
+on, you are immediately connected with the modem. If an argument file
+is provided, then it is assumed to be a chat script (see 'X'), and the
+chat script is immediately activated. With this file as with all others
+that can be entered, user numbers can be included in the filespecification:
+B3:CHAT.XYZ will look for the file in user area 3 on drive B: Either the
+drive or the user alone can be given: A:FOO.FOO and 7:BAZ.BAR are both
+acceptable, anything not given defaults to the current values. On
+completion of the chat script, command passes to normal connected
+operation. All special actions are initiated by typing the escape
+character, what happens next is determined by the next character typed.
+Note that while all letters here are shown in upper case, lower case works
+equally well: so <escape> b also activates the code to set the baud rate.
+As delivered, the escape character is set to control backslash, however it
+can be changed by patching QTERM: see QTERM.PAT for details, so to print
+help type '^\' '?', etc. In all the descriptions that follow, references to
+the escape character refer to this (i.e. '^\' and not the ESC key - '^[')
+
+At several places in QTERM it is necessary to be able to encode control
+characters and other "non-printing" characters in a visible mode, to
+do this a special escape mechanism is used. To start one of these escape
+sequences a backslash '\' is used, followed by one or more characters to
+define the desired character. The following are provided: '\r' carriage
+return (0x0d), '\n' linefeed (0x0a), '\t' tab (0x09), '\b' backspace
+(0x08), '\e' escape (0x1b), '\k' break, and '\d' delay. '\k' causes a
+break to be sent if this string is subsequently sent to the modem (as in
+a chat script), and '\d' causes a delay of two seconds when used in a
+chat script. In addition a backslash can be followed by up to three
+octal digits to send the character with that representation: so '\177'
+would send a delete, and '\003' or '\3' would send a control C; this can
+also be done for hexadecimal representations: in this case '\x' is the
+leadin, and it is followed by up to two hexadecimal digits: so '\x7f'
+would again send a delete, and '\xd' could be used in place of '\r' to
+send a carriage return. The rule for determining how many characters are
+used when scanning an octal or hex number is as follows: octal has a
+maximum of three, hex a maximum of two (not including the \ or \x
+respectively): use at most that many characters, or stop early if an
+inappropriate character is encountered.
+
+Retyping the escape character (i.e. typing it twice) sends a single copy
+of the escape character to the remote system.
+
+Other characters and what they do are:
+
+? - Print help - QTERM provides a brief synopsis of the available commands.
+
+. - Send a break - If QTERM has been patched to do it, this will transmit
+a tenth of a second break.
+
+, - Hang up modem - This is done by deactivating DTR for a short time, which
+causes most modems to hang up. Again QTERM has to be patched to do this.
+Alternatively, if your modem doesn't respond to DTR, it is possible to
+have QTERM transmit a string to cause a hangup: for example the:
+
+	'<delay> +++ <delay> ATH0'
+
+as required by a HAYES compatible modem. See the patch documentatin for
+details.
+
+B - Change baud rate and mode - This will first prompt you, your response
+must look like the following:
+
+	nnnn
+	nnnn mmm
+	* mmm
+	nnnn mmm -3 20 500 +S.
+
+where 'nnnn' is a number specifying the baud rate. Up to eight options
+are available: 300 600 1200 2400 4800 9600 19200 and 38400, although not
+all of these may be enabled. 'mmm' is a byte format specifier made up
+of three characters. The first must be '7 ' or '8' to specify the number
+of data bits; the second 'E', 'O', or 'N' for even, odd, or no parity;
+and the third '1' or '2' for the number of stop bits. The * in the third
+example is used as a place holder when the mode is to be changed, but
+not the baud rate. So, for example: '1200' would change to 1200 baud
+leaving the mode as is; '300 8n1' would switch to 300 baud, and select
+8 data bits, no parity, and 1 stop bit; and '* 7E2' would change the
+format to 7 data bits, even parity, and 2 stop bits, while leaving the
+baud rate alone. Two other options can be added to this line: the '-'
+option is a way of specifying three delays that can be set, and the '+'
+option can set the characters used to enable and disable character
+transmission from the remote system.
+
+If both the '-' and '+' options are used, then the '+' must follow the '-'
+(as above in the example).
+
+The '+' option changes the characters that QTERM will use for flow
+control. When a system is sending text to QTERM, which is being saved
+in a file, QTERM needs to be able to stop the remote system from
+sending when it writes to disk. Most of the time ^S and ^Q are
+recognised, but for the few systems that use other characters, this
+option allows them to be changed. Following the '+' should be exactly two
+characters ('S' and '.' in the example), the first becomes the "stop"
+character, and the second the "start" character. These characters can
+be '\' escapes if needed.
+
+If the '-' option is used, it should be followed by up to three numbers.
+The first is a delay in seconds after the "stop" character is sent.
+Since some systems take longer to respond to the "stop" character than
+others, the delay time can be changed. QTERM starts up with one second
+of delay, but by specifying -3 or -6 or whatever, this delay can be
+changed. -0 is possible, but not recommended unless your remote system
+responds instantly. The second number is a delay in milliseconds between
+character sends in 'P' transmits (see below). Note that this time is
+the time between the start of each character transmission, rather than
+a time between the end of one and the start of the next. So if this
+delay was set to 15 milliseconds at 1200 BPS, where each character
+takes about 8 milliseconds to transmit, there would be 8 milliseconds
+spent sending the character, and then 7 milliseconds of idle time: the
+total being 15. The third number is the delay at the end of a line in
+'P' transmission: this is also a count of milliseconds, and this delay
+occurs after transmission of a carriage return. Note that it is possible
+to selectively set these values: if a '*' is entered as a place holder
+then the delay value for that position will not be changed, i.e.
+
+	-* 20
+
+would leave the stop delay alone, set the character delay to 20
+milliseconds, and leave the end of line delay alone.
+
+Although QTERM always claims to have made the changes to the baud rate
+and communication mode, they will only happen if the necessary patches
+are applied. Note that for the second character of the mode specifier,
+both lower and upper case are accepted.
+
+C - Open an input catch file - This prompts for a filename, and then opens
+that file for output. All subsequent data received up the line from the
+modem port will be written to the file.
+
+Y - Put catch file on hold - This keeps the output file open, but temporarily
+disables transfer of data. A second <escape> 'Y' will re-enable capture
+of data.
+
+Z - Close a catch file - This closes the output file, and disables data
+capture until another catch file is opened.
+
+D - Display local directory - This prompts for a single CP/M wildcard
+file specificier, and then lists all files that match. Note that an
+empty filename is assumed to be '*.*'. This option will only work
+with CP/M 2.2 and compatible systems: it is disabled under CP/M 3.0.
+When the files are being printed, QTERM will stop after each screenful
+(23 lines), hitting return will print a single line, any other key will
+print a full page.
+
+E - Toggle remote echo - This toggles echo to the remote system. This will
+most likely be used when the remote system is a terminal or another
+computer running a terminal program. It causes all characters received
+from the modem to be re-transmitted back to the modem, creating the
+impression that the far end is running in half duplex mode. Caution
+should be used to make sure that you don't set up an 'infinite loop'
+where the remote system is also echoing: because then the first
+character that returns will be sent out again by QTERM, to be returned
+by the remote, to be sent out again by QTERM .....
+
+H - Toggle half duplex - This simply causes all keyboard input to be
+echoed to the screen.
+
+I - Print status information - This prints a summary of QTERM's current
+state, showing the state of the various toggles, delays, what the
+current drive and user are, etc.
+
+J - Junk control characters - This causes QTERM to discard all control
+characters received from the remote system that are not considered
+important. Important control characters are: carriage return (0x0d);
+linefeed (0x0a); backspace (0x08); and tab (0x09). In this mode, if
+the remote system is sending characters with the MSB set, and bit 7
+masking is not enabled (see 'M'), then all characters with bit 7 set
+will also be discarded.
+
+L - Toggle linefeed transmit for 'P' - When 'P' is used to send a file
+to a remote system, it normally transmits all useful characters: i.e.
+all printable ascii characters from ' ' to '~', tabs, and carriage
+returns. This toggle ensables the transmission of line feeds, for
+cases where it is needed. Note that when QTERM starts, this is off,
+i.e. the default is not to transmit linefeeds.
+
+M - Toggle bit 7 mask - When this is enabled, all characters received from
+the remote have the most significant bit stripped. This may be useful
+when QTERM is running in 8n1 mode, but the remote is transmitting in
+7e1 mode - the top bit will contain parity, and this strips it off.
+
+N - New default drive and user. This will prompt, and allow entry of a drive
+user specification (i.e 'A7:' or 'B14:' or 'C:' or '9:'), this then
+becomes the default for all file operations. Note that it is possible
+to user the CP/M BDOS functions to set drive and user during the entry
+hook code (see QTERM.PAT), so if the entry code selects D2:, and all
+scripts are on D2: just entering QTERM SCRIPT at the CCP prompt would
+find SCRIPT on D2:. Also note that after the entry hook code, QTERM makes
+a note of where it is (i.e. in the above case D2: ) When a chat script
+is invoked with the 'X' command, QTERM will first look at the drive
+given, or on the default if no drive is specified. If that fails, then
+QTERM will take a second look in the drive/user area as saved after the
+entry hook. The rationale behind this is to place all chat scripts in
+one place: these can subsequently move the default around (see the '!'
+section of chat scripts), or 'N' commands can be used to move around.
+However it does not matter what the current default drive/user is, QTERM
+can always find the scripts by lookng back at the area it noted.
+
+O - Toggle output to the printer - This simply toggles a switch that causes
+all data received to be transmitted to the printer.
+
+P - Print a file to remote - This prompts for a filename, and then transmits
+that file to the remote system. While this transfer is in progress, the
+keyboard is ignored, except that typing control 'X' will cancel the
+transfer. Note that the 'L' command may come in useful with this command,
+check how your remote system behaves.
+
+T - Type a local file - This also prompts for a filename, and then prints that
+file to the screen locally. While this is in progress, a control 'X' will
+cancel it, Output can also be paused by typing control 'S', which will
+halt until another character is typed. If this character is control 'X'
+the output will be aborted, any other continues the printout.
+
+U - Invoke user function - QTERM can be patched to include a user defined
+function, this is the command to call it. This subroutine can be used for
+any purpose required, for example keyboard mapping can be enabled, or some
+special screen sequence can be printed, or whatever is needed. The patch
+documentation provides information on how to patch this into QTERM, and
+also explains how it is possible to prompt for information from within
+this subroutine.
+
+V - Toggle VT100 emulation - This function requires the following screen
+abilities be specified before it will work (see QTERM.PAT for details):
+clear to end of line, and clear to end of screen. Note that the VT100
+emulation is as complete as it can be, however the alternate character
+sets are not recognised, and all the display attribute commands are mapped
+to the single highlight mode encoded in the patch area.
+
+W - Toggle split window mode - This requires that the insert line and delete
+line screen abilities be specified (see QTERM.PAT for details). It puts
+QTERM into a mode where send and receive text are shown in two separate
+windows. This can be useful when using QTERM to communicate with another
+communication program running in terminal mode, because it keeps what
+is typed on the keyboard separate from what is received from the remote
+system. After selecting window mode, QTERM prompts for window size: there
+are two options, 'b' or 's' (big or small). This refers to the receive
+window: when small, the screen is split exactly in half: 11 lines for
+both send and receive. Big mode makes the receive window 18 lines deep,
+the send window is only 4 lines: this will be useful when far more text
+is being received than is being sent.
+
+R - Receive a file using protocol - This option prompts for a mode and
+optional receive file information. Xmodem and Kermit are both supported.
+Respond with 'k' to go into Kermit receive, or 'x' to go into Xmodem
+receive. Normally files are received on the current default drive,
+however by entering a drive or a user (e.g. 'k b7:') files will be
+received in the specified location. In addition, if Xmodem is not
+being used in batch mode, a filename can be given here. Non-batch
+Xmodem has a default filename, this can be used to override it. Note
+that a space MUST be present between the k or the x and the
+filename / drive specification for proper operation. Normally QTERM
+is silent, however if an 'a' option is given immediately after the
+'x' or 'k' (as in 'ka c4:') QTERM will alert on termination of transfer
+by ringing the terminal bell. While the transfer is in progress, a
+control 'X' will abort it.
+
+S - Send a file using protocol - This also prompts, the response should be
+'k filelist ....' or 'x filelist ....' where 'filelist ....' is a list
+of CP/M filespecifiers: wildcards are permitted. Single filespecifiers
+are separated from one another by spaces, and there must be a space
+before the first filespecifier. There are options that can be given
+immediately following the k / x. For Kermit, the only option available
+is 'b', to forces binary mode. Kermit usually sends files in text
+mode, i.e. 0x1a is taken as end of file. If you want to transfer a
+binary file, specify the mode as 'kb filename.com'. Xmodem has the
+following options: 'b' - use Xmodem batch (AKA Modem7 batch mode);
+'y' - use Ymodem batch mode; 'k' - use 1K packets. So 'xbk a12:*.com'
+would send all .COM files on drive A:, user area 12, using Modem7
+batch mode and 1K packets. To match names to various combinations:
+xyk will give true Ymodem (known sometimes as ymodem batch), xk gives
+Xmodem 1K (sometimes incorrectly called ymodem), xy gives Ymodem batch,
+but forces 128 byte packets, xbk will use Modem7 batch mode, but with
+1K packets. Note that the Kermit implementation will attempt to use both
+hi bit quoting and repeat character packing for sending. As with protocol
+reception, this procedes in silence, however if an 'a' option
+(i.e. 'xkya 4:*.txt') is given, QTERM will ring the bell on completion;
+in addition, a control 'X' will abort the transfer.
+
+K - Program a function key - This prompts for a key number and a string
+to be loaded under that key. The first character entered may be an
+'s' to specify the string should be sent slowly. Normally function
+key strings are transmitted at full speed, however the 's' creates
+a tenth second delay between characters. Following the 's' (if given)
+or as the first character if no 's' is given, must be a digit between
+'0' and '9': this specifies the key number. Finally comes the string
+that will be loaded under the key. Maximum string length is 14
+characters, longer strings are truncated. Backslash escape sequences
+are permitted, see the description in the section on chat scripts
+for a full explanation of what is available. As a few examples:
+
+	s2hello\r
+
+would program function key 2 to send 'hello <cr>' slowly, and:
+
+	3userid = 17\e
+
+would program function key 3 to send 'userid = 17 <esc>' at full speed.
+
+0-9 - Send function key string - After <escape> 'K' has been used to load
+strings into the function keys, <escape> '0' etc. will activate the
+function key, causing the string it contains to be sent. Note that if a
+function key string contains the QTERM <escape> character, it will not
+invoke the function in question. So loading \x1c,\x1cq
+(<escape> , <escape> q) under a key cannot be used to provide a
+"hangup and exit" from QTERM.
+
+X - Activate a chat script - This prompts for a filename, then it reads
+the file, and does the chat script given. Following the filename can be
+parameters for use in the script, much as SUBMIT.COM allows parameters
+to be passed to a .SUB file. If a chat script is given to QTERM as a
+command line argument when it is invoked from the CCP, then the following
+command line arguments will become the parameters to the chat script.
+
+A chat script is a means for getting QTERM to automatically send and
+receive text, this can be used to auto-dial, connect to remote systems,
+log in to them, and do whatever else is wanted. A companion file
+QTCHAT.DOC explains the workings of chat scripts.

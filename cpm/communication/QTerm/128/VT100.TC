@@ -1,0 +1,4 @@
+dQ|vt100-q|dec vt100 as done by QTERM:\
+	:cr=^M:do=^J:nl=^J:bl=\200:co#80:li#24:cl=50\E[;H\E[2J:\
+	:le=^H:bs:am:cm=10\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
+	:ce=3\E[K:cd=50\E[J:pt:xn:

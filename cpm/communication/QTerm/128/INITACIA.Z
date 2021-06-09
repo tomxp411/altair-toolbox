@@ -1,0 +1,21 @@
+; INITACIA.Z - utility to turn the SwiftLink-232 serial cartridge for the
+; Commodore 128 (Dr. Evil Laboratories) on and off manually.
+
+; written 5/20/90 D. Goodenough
+
+	ld	hl,(0x5d)
+	ld	de,'O' + ['F' << 8]
+	xor	a
+	sbc	hl,de
+	jr	nz,aciaon
+	ld	hl,(0x5f)
+	ld	de,'F' + [' ' << 8]
+	xor	a
+	sbc	hl,de
+	jr	z,aciaof
+aciaon:	ld	a,0x0b
+aciaof:	ld	(0xff04),a
+	ld	bc,0xde02
+	out	(c),a
+	ld	(0xff02),a
+	rst	0

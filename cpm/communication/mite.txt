@@ -1,3 +1,0 @@
-Update of SIO2.ASM and a patched MITE.COM for the Altair Duino 8800 Pro kit.
-Allows use of the RS232 Port on the expansion/VGA card of the Pro Kit.
-Original files found at http://cpmarchives.classiccmp.org/cpm/Software/rlee/M/MYCROFT%20LABS/MITE/ 

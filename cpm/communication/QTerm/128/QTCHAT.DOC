@@ -1,0 +1,582 @@
+QTERM chat scripts
+==================
+
+A chat script is a means for getting QTERM to automatically send and
+receive text, this can be used to auto-dial, connect to remote systems,
+log in to them, and do whatever else is wanted. In addition, chat scripts
+have a number of commands available, to do such things as protocol sends
+and receives, transfer of text files, and many other things.
+
+There are two ways of invoking a chat script. Firstly when QTERM is
+executed from CP/M, a chat script and parameters can be provided there:
+
+	A>QTERM SCRIPT 1200
+
+would be an example, alternatively the ^\ X command will prompt for a
+filename, the response can be exactly the same:
+
+	Filename: SCRIPT 1200
+
+will have the same effect.
+
+QTERM will look in several places to try to find the script. The first
+thing it will do is to take the filename as given (subject to the
+current default drive/user, which may have been changed by the !n or
+^\ N commands). If this is not successful, QTERM then searches the
+drive/user area that was active when it first started. It should be
+noted that if the entry subroutine includes BDOS calls to change either
+the drive or user, then the values rememberd by QTERM will be those on
+exit from the entry subroutine. This provides a mechanism for setting
+up a default script area, a place where QTERM will always try to find
+scripts. In addition, if it can't find the script as a file in the
+default script area, QTERM will look for a .LBR file /QTERM.LBR and
+see if this library contains the script. The reason behind this is that
+scripts tend be fairly small, and it is far more efficient to keep them
+all together in one .LBR, since this saves disk space. It goes without
+saying that QTERM cannot deal with squeezed or crunched scripts, they
+must be saved in the .LBR as pure ASCII text files.
+
+When a chat script is running it can be terminated prematurely by typing
+^X on the keyboard: this will return to normal terminal mode.
+
+There are two types of lines in a chat script: send/expect lines, and
+command lines. Command lines are always started with a '!' character,
+any other character starts a send/expect line.
+
+Looking first at send/expect lines, they can contain up to six fields,
+and the first two must be provided, even if they are empty. An example
+of such a line is:
+
+	-AT\r-OK\r\n-3-2-3-0-
+
+In this example the '-' (first character) is the delimiter used to
+separate fields. Any character can be used except for '!', but whatever
+character is chosen cannot appear in the strings. Also note that
+chosing a delimiter from the characters above 'z' in the ASCII character
+set (i.e. '{', '|', '}', and '~') has a special effect, which is explained
+below. Taking the fields in order they are SEND, EXPECT, TIME, TRIES,
+SUCCESS, and FAIL. SEND is a string that is transmitted by QTERM, so in
+the example above QTERM would transmit 'AT<carriage return>'. As was noted
+above, delimiters above 'z' have a special effect: they cause the SEND
+string to be written out slowly: there is a tenth of a second delay
+after each character. EXPECT is a string that QTERM is looking for in
+response to it's SEND string: so in the above example, QTERM would be
+looking for the 'OK<carriage return><linefeed>' that a Hayes compatible
+modem would respond with, when presented with 'AT<return>'.
+
+The remining four fields are all decimal numbers, and can be omitted
+as QTERM will provide default values. TIME is the number of seconds
+to wait before assuming failure, if not given it defaults to 15. TRIES
+is the number of times to retry on failure, so taking our first example,
+TRIES is 2. If QTERM matched the EXPECT string on the first sending of
+SEND, all is well, but on the first failure it would resend the SEND string
+and look for the EXPECT string a second time. If it failed on this second
+attempt, only then would it consider this line to have failed. SUCCESS
+specifies the line number to transfer to in the chat script if it matched
+the EXPECT string. The default for this is the line following the current
+line. FAIL is the line to transfer to if the EXPECT string is not
+matched. This can be a line in the chat script, or as shown above 0 is
+allowed, which terminates the script immediately.
+
+In the example above, the success and fail values are given as simple
+line numbers, it is also possible to use labels in chat scripts, see !:
+below for an explanation of how to define a label. If a label is being
+used, the line might look like this:
+
+	-ATDT5551234\r-CONNECT-30--`connect-`fail-
+
+In this case, the `connect and `fail are label usages, and cause transfer
+to wherever the corresponding label is. Using an undefined label does not
+directly cause an error, but the substitution of the label will usually
+create a line that cannot be parsed, thus flagging the error.
+
+In another example, if the first line were:
+
+	-AT\r-OK\r\n--5-
+
+since TIME is empty, it defaults to 15, but as TRIES is 5, this line
+would try five times before giving up. Note also from this example
+that there are two ways of causing QTERM to default a value: an empty
+field (TIME) or end of the string (SUCCESS and FAIL). Note that the
+closing '-' after the 5 for TRIES is necessary. On the basis of this,
+the absulute minimum line is:
+
+	-send-expect-
+
+This uses all four defaults: 15 seconds timeout, 1 try, success goes to
+the next line, failure terminates the script. The idea behind these
+defaults is that a collection of simple send/expect lines like the above
+allow a "conversation" to be held with the remote system.
+
+It is possible that either of SEND or EXPECT can be empty: an empty SEND
+causes nothing to be sent, but the EXPECT must be matched to continue;
+an empty EXPECT automatically matches. Note that if both are empty then
+the chat script will terminate when it reaches that line, so a line like:
+
+	---
+
+will serve as a means to terminate a chat script, returning to terminal
+mode.
+
+Command lines in chat scripts start with '!', and following the '!' is
+a command letter. If input is needed (e.g. for a '!b' or '!s' line)
+it should be placed after the command letter:
+
+	!b 1200 8n1 -5 30 500 +\x13\x11
+
+As is shown in the above example, spaces are permitted after the command
+letter, but not before.
+
+Several of the ! commands correspond to ^\ commands available from terminal
+mode: the !b above would set the baud rate etc., just like the corresponding
+^\ B command would.
+
+Commands available in this group are:
+
+!,	hangup
+!.	break
+!B	set baud rate
+!E	set local echo
+!H	set half duplex
+!J	toggle junking of control characters
+!L	set linefeed send for 'P'
+!M	set bit 7 mask
+!N	select new drive/user
+!V	toggle VT100 emulation
+!W	toggle split window mode
+!K	program function key
+!P	print file to remote
+!U	invoke user function
+!R	protocol receive
+!S	protocol send
+!X	activate chat script
+!Q	exit QTERM
+
+Note also that the toggles ('!E', '!H', '!J', '!L', '!M', '!V' and '!W')
+behave a little differently. Since the state of these toggles is not defined
+when a chat script starts, with one exception (!W) there are three ways of
+invoking these. Using '!H' as an example:
+
+	!h
+
+behaves as would an <escape> 'H' in normal operation, i.e. it toggles
+the half duplex switch. However, if the following is given:
+
+	!h 1
+
+the trailing '1' forces half duplex to be enabled, irrespective of
+it's original state, and:
+
+	!h 0
+
+guarantees to turn half duplex off. The other toggles work in the same
+manner: a trailing '0' always disables, and a trailing '1' always
+enables. !W is a little different, in that there are three possibilities:
+window mode off, window mode on with big receive, and on with small. Also
+allowing a pure toggle could have undefined results, since if window mode
+were toggled on, there would be no indication what size was wanted. As
+a result of this, there are three forms for the !W command in a script:
+
+	!w 0
+
+forces window mode off,
+
+	!w b
+
+forces it on with a big receive window, and:
+
+	!w s
+
+forces it on, but with a small window. With all these toggles (!h etc. and
+!w) the options above are guaranteed, using any other option letters will
+have undefined results.
+
+The 'X' command to activate a chat script can be used to chain scripts
+together: when an 'X' is encountered the specified chat script is
+invoked, however the current script is lost: it is overwritten by the
+new one.
+
+There are other commands that are not normally available are as follows:
+
+
+!a - This simply alerts it's passing by ringing the terminal bell, this
+may be useful if a chat script is being used to repeatedly call a number
+until a connection is made: by putting a !a into the script, the
+system will beep when a connection is made.
+
+
+!f - Capture an ASCII text file. Since 'C' catch files are disabled during
+chat script operation, 'F' is provided as an alternative means for data
+capture. A typical 'F' line would be:
+
+	!f b:catch.txt 6 string
+
+This would open B:CATCH.TXT for output, then send 'string' out, and
+transfer all subsequent data to that file until a timeout of 6 seconds
+occurred. As with files opened by ^\ C, the specified file will be opened
+for append if it already exists, assuming it is writable. If it exists,
+but is read only, then QTERM will not do the open. 'string' is a string
+that can contain backslash escape sequences, just like a SEND string in
+normal chat operation. Any timeout can be given, up to about 250 seconds.
+Note that since this uses the same buffer as the <escape> C command, if
+there is already a catch file open, it will be automatically closed prior
+to execution of a '!f'.
+
+
+!: - Define a label. Label usage was described above: the '`' character
+introduces a label usage. To define a label, simply include a line of
+the form:
+
+!: connect
+
+in the script. A few comments may make labels easier to use, firstly
+they cannot be longer than seven characters, and where they are defined
+there should be no trailing blanks. When a label is used, it is done by
+means of a simple text substitution: after seeing a '`' character, QTERM
+tries to match the following text with a label in the script, and it
+stops at the first match. So if you have two labels one of which is a
+prefix of the other, the results can be unpredictable. As a byproduct
+of this, undefined labels do not generate an error (they just become
+line zero), but the text substitution doesn't remove the label, so the
+resulting line usually generates an error. In the event that a '`'
+character is needed as part of a send or expect string, it can be
+escaped by preceeding it with a $, so the line:
+
+	.send.exp$`ect.
+
+will look for exp`ect, whereas:
+
+	.send.exp`ect.
+
+will not work, it would try to look for and substitute the label 'ect'.
+
+
+The commands !@ and !# can be used for variable manipulation. Their
+main purpose is to prevent infinite loops in chat scripts. In the
+following example:
+
+	!: reset
+	.AT\r.OK\r\n.5.5.
+	.ATDT5551212\r.CONNECT.30..`connect.`reset.
+	!: connect
+	. ........
+
+if the system being called is off line and not answering, QTERM will
+loop here for ever. The !@ and !# provide the ability to keep count and
+terminate the loop after some specified number of tries.
+
+	!@ var term +/- term
+
+is the form of an @ line. var is a single letter variable (there are 26
+available: a through z), and term is either a number or a variable. This
+is very simplistic, in that two terms must be present: to set a variable
+simply say something like:
+
+	!@ a 5 + 0
+
+the operator can be either + or - and they act as you would expect. so:
+
+	!@ a a - 1
+
+will subtract 1 from a, or:
+
+	!@ a a + b
+
+will add b to a, etc. etc. Note that variables are recognised in either
+upper or lower case:
+
+	!@ A a + B
+
+would have exactly the same effect as the line above. Note that these are
+single bytes, so there is some risk of working with values above 255.
+
+!# tests variables: the general syntax is:
+
+	!# var operator term line
+
+where var is a variable letter, term is a variable or a number, and the
+operator can be '=' to test for equality, '#' to test for inequality, '<'
+to check for less than and '>' to test for greater than. line is simply
+the line number in the script to go to is the test succedes. Note that this
+also provides a goto capability:
+
+	!# a = a line
+
+will always go to line, since a is always equal to itself. In this case,
+line can be a label usage:
+
+	!# a = a `doit
+
+All variables are initialized to zero when the first script in a series is
+invoked, but values are retained when a !x command chains from one script
+to another.
+
+
+Two commands have been added to manipulate the appearance of chat scripts:
+
+	!> This is a line of text\r\n
+
+!> simply prints the text, after processing '\' escapes. Note that
+leading and trailing spaces are ignored, so the above case would start
+with the 'T' of 'This'. In order to start or end with a with a space,
+\x20 can be used.
+
+	!%
+
+This command is actually several different commands rolled into one:
+!% o manipulates the echoing of characters received from the modem
+while the script is running:
+
+	!% o 1
+
+forces modem echo on,
+
+	!% o 0
+
+forces it off, and:
+
+	!% o
+
+simply switches state. In the same manner, !% m controls printout of
+the 'Match: OK' messages that are printed when QTERM matches the expect
+string in a send/expect line.
+
+
+As a complement to !>, teh !< command can be used to take keyboard input,
+and make decisions based on what happens. This includes four subcommands
+altogether:
+
+	!< -
+
+The '-' causes QTERM to prompt for a line of input using CP/M's BDOS
+buffered command. The line is then saved, and can be tested with the !< =
+command:
+
+	!< = string line
+
+If the input read in the !< - command is 'string' then transfer to line
+(which can be a label). Note that string is NOT processed for escapes,
+since the is intended only for printable ascii text comparisons.
+
+This allows for such things as multiple choice:
+
+	!> \r\nSelect system to call\r\n
+	!> 1. System 1 ..... \r\n
+	!> 2. System 2 ..... \r\n
+	!> 3. System 3 ..... \r\n
+	!: prompt
+	!> Enter 1, 2 or 3:\x20
+	!< -
+	!< = 1 `sys1
+	!< = 2 `sys2
+	!< = 3 `sys3
+	!> Error, invalid input\r\n
+	!# a = a `prompt
+
+Where the first 4 lines print a menu, the next line defines a label. Then
+comes a prompt, followed by an input command. After this, the line is
+checked against 1, 2 and 3, and a jump is made to the appropriate label.
+If there is no match an error message is printed, and the !# a = a line
+is used as a goto, since a is always equal to a.
+
+In a similar manner, '!< .' and '!< ,' provide "hot key" comparisons, the
+!< . command simply reads a single character from the keyboard, and !< ,
+compares against a single character value just like !< = does:
+
+	!< , \r `return
+
+would be the test for a hot key input of a single carriage return. Note that
+in this case, \ escapes are permitted.
+
+
+The ![ command provides a similar function to the !< command, but it
+works on text coming from the modem. There are three forms:
+
+	![ -
+
+reads text from the modem. In this instance there are two ways that
+reading can end:
+
+	![ - 15
+
+would simply read text for 15 seconds. This numeric timeout must be
+provided, but in addition up to four extra strings can be provided:
+
+	![ - 5 .string1.string2.string3.string4.
+
+in which case input will terminate when 5 seconds have elapsed, or one
+of the four strings is read. In this line, the '.' following the 5 is a
+delimiter, this serves to separate the strings exactly like the delimiter
+in a send / expect line. Not all four strings need to be there:
+
+	![ - 5 .OK.ERROR.
+
+is acceptable, but the trailing delimiter must be there after the last
+string. In addition to scanning for the four lines, QTERM keeps the last
+sixty-four characters seen in a buffer, these can then be inspected with
+![ = and ![ + lines. These do very similar functions, in that they both
+look for a string in the last 64 characters seen.
+
+	![ = string line
+
+searches the saved text for the string, which in this case can include
+\ escapes. If string occured anwhere in the last 64 characters, control
+goes to line. ![ + looks exactly the same, but the difference is whether
+the test is done on seven or eight bit data: ![ = just compares the least
+significant seven bits, ignoring the parity bit, whereas ![ + compares
+all eight. Note also that the strings provided in the ![ - line are only
+checked in seven bit mode.
+
+
+The !~ command has been added for rudimentary file manipulation
+during chat script operation. Three options exist:
+
+	!~ - file
+
+will erase a file. Note that QTERM will silently ignore this command
+if the file doesn't exist, or if it is write protected. As with all
+filenames, a drive/user can be given:
+
+	!~ - d15:foo.bar
+
+does like you'd expect.
+
+	!~ = newname = oldname
+
+renames a file: note that if a drive/user is given on oldname, it will
+be ignored: newname completely defines where the action will happen.
+This will fail silently if newname already exists, or if old name doesn't,
+or if oldname does exist but is write protected.
+
+	!~ + newname = oldname
+
+copies a file. In this case a file can be copied to a different
+drive / user, so if needed a drive / user spec should be attached to
+oldname. This will fail silently if newname exists or if oldname doesn't.
+These can be used to good effect when QTERM is sending text files as
+messages to a BBS, after sending the file with a !P command, a !~ - will
+erase it, or files can be erased after uploading, or a file might be
+renamed after a batch download.
+
+
+Parameters can be passed to chat scripts, in much the same way as to
+SUBMIT operation: invoking a script:
+
+	SENDFILE b3:*.asm
+
+where there is a line in it:
+
+	!s xky $1
+
+causes the line to become:
+
+	!s xky b3:*.asm
+
+Warning: when a script is invoked directly from CP/M the parameters will all
+be forced to upper case - this is a byproduct of the behaviour of the CCP.
+It is for this reason that variables are recognised in both upper and lower
+case: there are interesting things that can be done by mixing $n parameters
+and variables: more in a minute.
+
+In some cases it may be desirable to set a default value for a parameter,
+a further line has been added to do this:
+
+	!$n stuff
+
+the '!' and '$' are just that, 'n' is the number of a parameter ('1'
+through '9') and stuff will become the default value. In the following
+case:
+
+	!$3 default
+
+if parameter 3 is not set (i.e. blank) it is expanded to default,
+otherwise it is left alone. This might be useful when using one script
+to call at one of several baud rates:
+
+	CALLBBS 1200
+
+could be done in conjunction with:
+
+	!b $1 8n1 .....
+
+inside CALLBBS. However if the script is invoked:
+
+	CALLBBS
+
+without a parameter, and the following line:
+
+	!$1 2400
+
+exists, then the baud rate in the !b command would default to 2400. In
+order for these default set commands to work, they MUST be provided in
+the correct sequence:
+
+	!$2 something
+	!$1 hello
+
+will do very strange things. Also skipping values will do unexpected things,
+as will putting spaces in the default string. A place where this can be used
+to good effect is a script chain that calls several BBS's. By running a
+variable from 0 to 25 to escape the infinte loop described above:
+
+	!: reset
+	!@ a a + 1
+	!# a > 25 `exit
+	.AT\r.OK\r\n.5.5.
+	.ATDT5551212\r.CONNECT.30..`connect.`fail.
+	!: fail
+	.XXX\r.YYY.30.5.`reset.`reset.
+	!: connect
+
+when time runs out, this jumps to exit. Now, consider the following:
+
+	!$1 y
+	!@ n 26 + 0
+	!@ a $1 + 0
+
+Taking these lines in order: the first defaults parameter 1 to y
+The second sets variable n to 26. The last sets a to the variable
+named by parameter 1, so if the script is invoked:
+
+	CALLBBS N
+
+$1 will be N, and the last line will set a to 26 (n + 0). So when
+control enters the loop above, a is already set to 26, and the script
+immediately goes to `exit, thus bypassing the board. However, if it
+is invoked as just:
+
+	CALLBBS
+
+$1 defaults to y, and line three sets a to 0, thus causing the BBS to
+be tried. By repeating this for several boards:
+
+	CALLBBS Y N Y Y N
+
+will call the first, third and fourth, but bypass two and five. VERY
+IMPORTANT NOTE: in a sequence of chat scripts, chained by the !x command
+the parameters are lost after the !x command. However, by saying
+
+	!x script param1 param2 param3
+
+parameters can be passed from one script to another, and indeed other
+parameters can be added, and some removed.
+
+As is done with labels, $n parameters are handled by simple text
+substitution, so a little care will make their use easier. As was
+described above, '$' is used to escape '`' characters in strings, it is
+also used to escape itself. i.e. to actually place a '$' character in a
+string say '$$', so that:
+
+	.send.exp$$ect.
+
+would look for the string 'exp$ect'. There are only three things that
+can follow a '$' sign: either '$' or '`' for escaping purposes,
+and '1' through '9' for parameter substitution. Placing any other
+character after a '$' will have an undefined result.
+
+
+As a final note, any other command character is silently ignored,
+this can be put to use to introduce comments. At this stage, !; is
+not in use, and this is the official comment entry, it is guaranteed
+that !; will never be used for a command line function in a QTERM
+chat script.
